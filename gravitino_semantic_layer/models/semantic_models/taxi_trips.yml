@@ -1,6 +1,13 @@
 semantic_models:
   - name: taxi_trips
     description: NYC yellow cab trips for 2024
+    ai_context:
+      instructions: "Use this semantic model for NYC taxi trip analytics.
+        Use total_trips to answer questions about trip volume or number of rides.
+        Use average_fare for questions about cost, pricing, or fare amounts.
+        vendor_id 1 is Creative Mobile Technologies, vendor_id 2 is VeriFone.
+        payment_type 1 is credit card, 2 is cash, 3 is no charge, 4 is dispute.
+        Data covers all NYC yellow cab trips for the full year 2024."
     model: ref('stg_taxi_trips')
 
     entities:
