@@ -1,0 +1,49 @@
+semantic_models:
+  - name: taxi_trips
+    description: NYC yellow cab trips for 2024
+    model: ref('stg_taxi_trips')
+
+    entities:
+      - name: trip
+        type: primary
+        expr: "row_number() over ()"
+
+    measures:
+      - name: trip_count
+        description: Total number of trips
+        agg: count
+        expr: fare_amount
+        agg_time_dimension: pickup_datetime
+
+      - name: avg_fare
+        description: Average fare amount
+        agg: average
+        expr: fare_amount
+        agg_time_dimension: pickup_datetime
+
+    dimensions:
+      - name: vendor_id
+        type: categorical
+
+      - name: payment_type
+        type: categorical
+
+      - name: pickup_datetime
+        type: time
+        type_params:
+          time_granularity: day
+
+metrics:
+  - name: total_trips
+    label: Total Trips
+    description: Total number of taxi trips
+    type: simple
+    type_params:
+      measure: trip_count
+
+  - name: average_fare
+    label: Average Fare
+    description: Average fare amount per trip
+    type: simple
+    type_params:
+      measure: avg_fare
