@@ -11,7 +11,6 @@ with source as (
         fare_amount,
         tip_amount,
         total_amount
-    from read_parquet('/home/markh/data/nyc_taxi_2024/*.parquet')
+    from iceberg_nyc.nyc_taxi.yellow_trips
 )
-
 select * from source
