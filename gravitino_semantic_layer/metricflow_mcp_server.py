@@ -6,6 +6,7 @@ Exposes governed metrics from a dbt/MetricFlow project as MCP tools.
 import os
 import json
 import subprocess
+import trino
 from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
@@ -116,6 +117,59 @@ def query_metric(metric: str, group_by: str = None) -> str:
     except Exception as e:
         return f"Error querying metric '{metric}': {str(e)}"
 
+@mcp.tool()
+def execute_metric(metric: str, group_by: str = None) -> str:
+    """
+    Execute a governed metric query and return the actual results.
+    Compiles the metric to SQL via MetricFlow then executes against Trino.
+
+    Args:
+        metric: The name of the metric to query (e.g. 'total_trips', 'average_fare')
+        group_by: Optional dimension to group by (e.g. 'metric_time__day', 'trip__vendor_id')
+    """
+    try:
+        args = ["query", "--metrics", metric, "--explain"]
+        if group_by:
+            args += ["--group-by", group_by]
+
+        output = run_mf_command(args)
+
+        # Extract SQL from MetricFlow output
+        lines = output.splitlines()
+        sql_lines = []
+        in_sql = False
+        for line in lines:
+            if "Compiled SQL" in line or ("SQL" in line and "explain" in line.lower()):
+                in_sql = True
+                continue
+            if in_sql:
+                sql_lines.append(line)
+        sql = "\n".join(sql_lines).strip()
+        if not sql:
+            sql = output.strip()
+
+        # Execute against Trino
+        conn = trino.dbapi.connect(
+            host="localhost",
+            port=8082,
+            user="admin",
+        )
+        cursor = conn.cursor()
+        cursor.execute(sql)
+        rows = cursor.fetchall()
+        columns = [d[0] for d in cursor.description]
+
+        if not rows:
+            return "Query returned no results."
+
+        # Format as table
+        header = " | ".join(columns)
+        separator = "-" * len(header)
+        result_rows = [" | ".join(str(v) for v in row) for row in rows]
+        return "\n".join([header, separator] + result_rows)
+
+    except Exception as e:
+        return f"Error executing metric '{metric}': {str(e)}"
 
 if __name__ == "__main__":
     mcp.run(transport="streamable-http", mount_path="/mcp")
